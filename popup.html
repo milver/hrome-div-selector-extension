@@ -1,23 +1,48 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <style>
-      body {
-        width: 300px;
-        padding: 10px;
-      }
-      select {
-        width: 100%;
-        padding: 5px;
-        margin-bottom: 10px;
-      }
-    </style>
-  </head>
-  <body>
-    <h3>Select a Div</h3>
-    <select id="divSelector"></select>
-    <button id="highlightBtn">Highlight Text</button>
+<head>
+  <meta charset="utf-8">
+  <title>Div Tree Selector</title>
+  <style>
+    body {
+      width: 400px;
+      padding: 10px;
+      font-family: Arial, sans-serif;
+    }
+    #treeContainer {
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #ccc;
+      padding: 10px;
+    }
+    #copyBtn {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    #copyBtn:hover {
+      background-color: #45a049;
+    }
+  </style>
+  <!-- Include jsTree CSS locally -->
+  <link rel="stylesheet" href="libs/style.min.css" />
+</head>
+<body>
+  <h3>Select a Div</h3>
+  <div id="treeContainer">
+    <div id="jstree"></div> <!-- Ensure this matches your JS selector -->
+  </div>
+  <button id="copyBtn">Copy Visible Text</button>
 
-    <script src="popup.js"></script>
-  </body>
+  <!-- Include jQuery and jsTree JS locally -->
+  <script src="libs/jquery.min.js"></script>
+  <script src="libs/jstree.min.js"></script>
+  <!-- Link external popup.js file -->
+  <script src="popup.js"></script>
+</body>
 </html>

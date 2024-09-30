@@ -1,52 +1,30 @@
-document.addEventListener("DOMContentLoaded", function () {
-    const divSelector = document.getElementById('divSelector');
-    const highlightBtn = document.getElementById('highlightBtn');
-  
-    // Request divs from the content script
-    chrome.tabs.query({active: true, currentWindow: true}, function (tabs) {
-      chrome.scripting.executeScript({
-        target: {tabId: tabs[0].id},
-        function: getDivs
-      }, (results) => {
-        const divs = results[0].result;
-  
-        // Populate combobox with div elements
-        divs.forEach((div, index) => {
-          const option = document.createElement('option');
-          option.value = index;
-          option.textContent = `Div ${index + 1}: ${div.text}`;
-          divSelector.appendChild(option);
-        });
-      });
+$(document).ready(function() {
+    // Initialize jsTree after the DOM is fully loaded
+    $('#jstree').jstree({
+      'core': {
+        'data': [
+          {
+            "text": "Root node 1",
+            "children": [
+              {"text": "Child node 1", "id": "child_node_1"},
+              {"text": "Child node 2"}
+            ]
+          },
+          {"text": "Root node 2"}
+        ]
+      }
     });
   
-    // Handle highlight button click
-    highlightBtn.addEventListener('click', function () {
-      const selectedDivIndex = divSelector.value;
-      chrome.tabs.query({active: true, currentWindow: true}, function (tabs) {
-        chrome.scripting.executeScript({
-          target: {tabId: tabs[0].id},
-          function: highlightDiv,
-          args: [parseInt(selectedDivIndex)]
-        });
-      });
+    // Bind to events triggered on the tree
+    $('#jstree').on("changed.jstree", function (e, data) {
+      console.log('Selected node:', data.selected);
+    });
+  
+    // Button interaction with the tree
+    $('#copyBtn').on('click', function () {
+      // Programmatically select a node
+      $('#jstree').jstree(true).select_node('child_node_1');
+      console.log('Child node 1 selected programmatically');
     });
   });
-  
-  // Function to retrieve all divs on the page
-  function getDivs() {
-    const divs = document.querySelectorAll('div');
-    return Array.from(divs).map(div => ({
-      text: div.innerText.slice(0, 50), // Limiting the text length to 50 characters for display
-      html: div.innerHTML
-    }));
-  }
-  
-  // Function to highlight the selected div
-  function highlightDiv(index) {
-    const divs = document.querySelectorAll('div');
-    const selectedDiv = divs[index];
-    selectedDiv.style.backgroundColor = 'yellow'; // Highlight the div
-    window.scrollTo({ top: selectedDiv.offsetTop, behavior: 'smooth' }); // Scroll to the div
-  }
   
