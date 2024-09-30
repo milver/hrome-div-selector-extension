@@ -10,7 +10,7 @@ function getNodeStructure(element, path = '') {
         selector += '>' + element.tagName.toLowerCase();
     }
 
-    Array.from(element.children).forEach((child, index) => {
+    Array.from(element.children).forEach((child) => {
         children.push(getNodeStructure(child, selector));
     });
 
