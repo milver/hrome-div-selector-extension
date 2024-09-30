@@ -1,60 +1,70 @@
+let currentHighlight = null;
+
 function addDebugMessage(message) {
     const debugElement = document.getElementById('debug');
     debugElement.innerHTML += message + '<br>';
-    console.log(message);  // Also log to console for easier debugging
+    console.log(message);
 }
 
-function checkJQuery() {
-    if (typeof jQuery === 'undefined') {
-        addDebugMessage("Error: jQuery is not defined");
-        return false;
-    }
-    addDebugMessage("jQuery version: " + jQuery.fn.jquery);
-    return true;
-}
-
-function checkJsTree() {
-    if (typeof jQuery.fn.jstree === 'undefined') {
-        addDebugMessage("Error: jsTree is not defined");
-        return false;
-    }
-    addDebugMessage("jsTree is defined");
-    return true;
+function generateTreeData() {
+    return new Promise((resolve) => {
+        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+            chrome.tabs.sendMessage(tabs[0].id, {action: "getDOMStructure"}, function(response) {
+                resolve(response);
+            });
+        });
+    });
 }
 
 function initializeJsTree() {
-    addDebugMessage("Attempting to initialize jsTree");
+    addDebugMessage("Initializing jsTree");
     
-    if (!checkJQuery() || !checkJsTree()) {
-        return;
-    }
-
-    try {
-        jQuery('#jstree').jstree({
+    generateTreeData().then((treeData) => {
+        $('#jstree').jstree({
             'core': {
-                'data': [
-                    { "text" : "Root node", "children" : [
-                        { "text" : "Child node 1" },
-                        { "text" : "Child node 2" }
-                    ]}
-                ]
+                'data': treeData,
+                'themes': {
+                    'name': 'default',
+                    'dots': false,
+                    'icons': false
+                }
+            }
+        }).on('changed.jstree', function (e, data) {
+            if(data.selected.length) {
+                chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+                    chrome.tabs.sendMessage(tabs[0].id, {
+                        action: "highlightElement",
+                        selector: data.instance.get_node(data.selected[0]).original.selector
+                    });
+                });
+                currentHighlight = data.instance.get_node(data.selected[0]).original.selector;
             }
         });
-
-        jQuery('#jstree').on("changed.jstree", function (e, data) {
-            console.log('Node selected:', data.selected);
-        });
-
-        addDebugMessage("jsTree initialized successfully");
-    } catch (error) {
-        addDebugMessage("Error initializing jsTree: " + error.message);
-    }
+    });
 }
 
 document.addEventListener('DOMContentLoaded', function() {
     addDebugMessage("DOM content loaded");
-    addDebugMessage("Checking script loading:");
-    addDebugMessage("jQuery script: " + (document.querySelector('script[src*="jquery"]') ? "Found" : "Not found"));
-    addDebugMessage("jsTree script: " + (document.querySelector('script[src*="jstree"]') ? "Found" : "Not found"));
-    setTimeout(initializeJsTree, 100);  // Short delay to ensure scripts are loaded
+    initializeJsTree();
+
+    document.getElementById('copyButton').addEventListener('click', function() {
+        if (currentHighlight) {
+            chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+                chrome.tabs.sendMessage(tabs[0].id, {
+                    action: "copyText",
+                    selector: currentHighlight
+                }, function(response) {
+                    if (response && response.text) {
+                        navigator.clipboard.writeText(response.text).then(() => {
+                            addDebugMessage("Text copied to clipboard");
+                        }).catch(err => {
+                            addDebugMessage("Failed to copy text: " + err);
+                        });
+                    }
+                });
+            });
+        } else {
+            addDebugMessage("No element selected");
+        }
+    });
 });
