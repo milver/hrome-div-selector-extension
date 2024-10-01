@@ -3,23 +3,33 @@
 <head>
     <title>Div Selector</title>
     <link rel="stylesheet" href="libs/jstree.min.css" />
+    <link rel="stylesheet" href="libs/css/all.min.css" />  <!-- Local FontAwesome -->
     <style>
         body {
             width: 300px;
             padding: 10px;
         }
+        #jstree {
+            max-height: 200px;
+            max-width: 280px;  /* Added width control */
+            overflow-y: auto;
+            overflow-x: auto;  /* Allow horizontal scrolling */
+        }
         #debug {
             margin-top: 10px;
             color: red;
             max-height: 100px;
+            max-width: 280px;  /* Added width control */
             overflow-y: auto;
+            overflow-x: auto;  /* Allow horizontal scrolling */
         }
         #copyButton {
             margin-top: 10px;
         }
     </style>
-    <script src="libs/jquery.min.js"></script>
+    <script src="libs/jquery.min.js"></script>  <!-- Load jQuery before DomOutline -->
     <script src="libs/jstree.min.js"></script>
+    <script src="jquery.dom-outline-1.0.js"></script>  <!-- Add the DomOutline library here -->
 </head>
 <body>
     <div id="jstree"></div>

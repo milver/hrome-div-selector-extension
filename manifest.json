@@ -5,17 +5,36 @@
     "description": "List all divs in a treeview, select and highlight them, and copy their visible text.",
     "permissions": ["activeTab", "scripting", "clipboardWrite"],
     "action": {
-      "default_popup": "popup.html",
-      "default_icon": {
-        "16": "icon16.png",
-        "48": "icon48.png",
-        "128": "icon128.png"
-      }
+        "default_popup": "popup.html",
+        "default_icon": {
+            "16": "icon16.png",
+            "48": "icon48.png",
+            "128": "icon128.png"
+        }
     },
     "content_scripts": [
-      {
-        "matches": ["<all_urls>"],
-        "js": ["content.js"]
-      }
+        {
+            "matches": ["<all_urls>"],
+            "js": [
+                "libs/jquery.min.js",              // Load jQuery first
+                "jquery.dom-outline-1.0.js",       // Then load DomOutline
+                "content.js"                       // Finally load content.js
+            ]
+        }
+    ],
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "libs/css/all.min.css",
+                "libs/webfonts/fa-solid-900.woff2",
+                "libs/webfonts/fa-solid-900.woff",
+                "libs/webfonts/fa-solid-900.ttf",
+                "libs/jquery.min.js",
+                "libs/jstree.min.js",
+                "libs/jstree.min.css",
+                "jquery.dom-outline-1.0.js"
+            ],
+            "matches": ["<all_urls>"]
+        }
     ]
-  }
+}
