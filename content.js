@@ -1,48 +1,55 @@
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     if (request.action === "getDOMStructure") {
+        console.log("Received request for DOM structure");
         sendResponse(getNodeStructure(document.body));
     } else if (request.action === "highlightElement") {
-        clearHighlight();  // Clear any existing highlights
-        highlightElement(request.selector);  // Highlight the new element using DomOutline
+        console.log("Highlighting element:", request.selector);
+        clearHighlight();  
+        highlightElement(request.selector);  
     } else if (request.action === "copyText") {
+        console.log("Copying text from element:", request.selector);
         const text = getVisibleText(request.selector);
         clearHighlight();
         sendResponse({ text: text });
     }
+    return true;
 });
 
-// Function to generate the DOM structure
-function getNodeStructure(element, path = '', depth = 0, maxDepth = 10) {
+function getNodeStructure(element, path = '', depth = 0, maxDepth = 20) { 
     let children = [];
     let selector = path;
 
     if (element.id) {
-        selector += '#' + element.id;
+        selector += '#' + element.id;  
     } else if (element.className && typeof element.className === 'string') {
-        selector += '.' + element.className.split(' ').join('.');
+        const className = element.className.split(' ').filter(Boolean)[0];  
+        if (className) {
+            selector += '.' + className;
+        } else {
+            selector += '>' + element.tagName.toLowerCase();  
+        }
     } else {
-        selector += '>' + element.tagName.toLowerCase();
+        selector += '>' + element.tagName.toLowerCase();  
     }
 
-    // Limit DOM traversal to a certain depth
     if (depth >= maxDepth) {
         return {
             text: element.tagName.toLowerCase() + 
                   (element.id ? '#' + element.id : '') + 
-                  (element.className && typeof element.className === 'string' ? '.' + element.className.split(' ').join('.') : ''),
+                  (element.className && typeof element.className === 'string' ? '.' + element.className.split(' ')[0] : ''),
             children: false,
             selector: selector
         };
     }
 
     Array.from(element.children).forEach((child) => {
-        children.push(getNodeStructure(child, selector, depth + 1, maxDepth));
+        children.push(getNodeStructure(child, selector + ' > ', depth + 1, maxDepth));  
     });
 
     return {
         text: element.tagName.toLowerCase() + 
               (element.id ? '#' + element.id : '') + 
-              (element.className && typeof element.className === 'string' ? '.' + element.className.split(' ').join('.') : ''),
+              (element.className && typeof element.className === 'string' ? '.' + element.className.split(' ')[0] : ''),
         children: children.length > 0 ? children : false,
         selector: selector
     };
@@ -55,17 +62,21 @@ function getVisibleText(selector) {
             .map(el => el.textContent.trim())
             .filter(text => text.length > 0)
             .join(' ')
+            .replace(/\s+/g, ' ')  // Replace multiple spaces with a single space
             .trim();
     }
     return '';
 }
 
-// Function to highlight the element using DomOutline
 function highlightElement(selector) {
-    const element = document.querySelector(selector);  // Find the element using the selector
+    clearHighlight();  
+    const element = document.querySelector(selector);  
     if (element) {
-        var myDomOutline = DomOutline({ onClick: function() {}, filter: 'div' });
-        myDomOutline.start();  // Start DomOutline to highlight the element
+        var myDomOutline = DomOutline({ onClick: function() {}, filter: '*' });
+        myDomOutline.start(element);  
+        console.log('Element found and outlined for selector: ', selector);  
+    } else {
+        console.log('Element not found for selector: ', selector);  
     }
 }
 
@@ -74,4 +85,7 @@ function clearHighlight() {
     if (existingHighlight) {
         existingHighlight.remove();
     }
+
+    const outlineElements = document.querySelectorAll('.DomOutline, .DomOutline_label');
+    outlineElements.forEach(element => element.remove());
 }

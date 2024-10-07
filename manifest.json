@@ -3,7 +3,7 @@
     "name": "Div Selector",
     "version": "1.1",
     "description": "List all divs in a treeview, select and highlight them, and copy their visible text.",
-    "permissions": ["activeTab", "scripting", "clipboardWrite"],
+    "permissions": ["activeTab", "scripting"],
     "action": {
         "default_popup": "popup.html",
         "default_icon": {
@@ -16,9 +16,9 @@
         {
             "matches": ["<all_urls>"],
             "js": [
-                "libs/jquery.min.js",              // Load jQuery first
-                "jquery.dom-outline-1.0.js",       // Then load DomOutline
-                "content.js"                       // Finally load content.js
+                "libs/jquery.min.js",
+                "jquery.dom-outline-1.0.js",
+                "content.js"
             ]
         }
     ],
@@ -29,10 +29,8 @@
                 "libs/webfonts/fa-solid-900.woff2",
                 "libs/webfonts/fa-solid-900.woff",
                 "libs/webfonts/fa-solid-900.ttf",
-                "libs/jquery.min.js",
                 "libs/jstree.min.js",
-                "libs/jstree.min.css",
-                "jquery.dom-outline-1.0.js"
+                "libs/jstree.min.css"
             ],
             "matches": ["<all_urls>"]
         }

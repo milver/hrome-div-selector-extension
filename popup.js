@@ -3,65 +3,21 @@ let currentHighlight = null;
 function addDebugMessage(message) {
     const debugElement = document.getElementById('debug');
     debugElement.innerHTML += message + '<br>';
-}
-
-function nodeHasMeaningfulText(node) {
-    const text = node.text.trim();
-
-    // Exclude specific tag types that are not relevant
-    const excludedTags = ['script', 'style', 'svg', 'img', 'noscript'];
-    if (excludedTags.some(tag => node.text.toLowerCase().startsWith(tag))) {
-        addDebugMessage(`Filtering out node: ${node.text}`);
-        return false;
-    }
-
-    // Ensure the node is not empty and doesn't only contain comments or whitespace
-    const hasMeaningfulText = text !== '' && !node.text.startsWith('<!---->') && 
-           (node.text.includes('visually-hidden') || node.text.includes('aria-hidden') || 
-           (node.children && node.children.some(child => nodeHasMeaningfulText(child))));
-    
-    if (hasMeaningfulText) {
-        addDebugMessage(`Keeping node: ${node.text}`);
-    } else {
-        addDebugMessage(`Filtering out node: ${node.text}`);
-    }
-    return hasMeaningfulText;
-}
-
-function filterTreeData(node) {
-    if (!node) return null;
-
-    let filteredChildren = node.children ? node.children.map(filterTreeData).filter(Boolean) : [];
-
-    if (nodeHasMeaningfulText(node) || filteredChildren.length > 0) {
-        return {
-            text: node.text,
-            children: filteredChildren.length > 0 ? filteredChildren : false,
-            selector: node.selector
-        };
-    }
-
-    return null;
+    console.log(message);
 }
 
 function generateTreeData() {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
             addDebugMessage("Sending message to content script to get DOM structure");
             chrome.tabs.sendMessage(tabs[0].id, { action: "getDOMStructure" }, function(response) {
                 if (response) {
+                    console.log("DOM Structure received:", response);
                     addDebugMessage("Received DOM structure");
-                    const filteredData = filterTreeData(response);
-                    if (filteredData) {
-                        addDebugMessage("Filtered tree data generated");
-                        resolve(filteredData);
-                    } else {
-                        addDebugMessage("No meaningful data to display in tree");
-                        resolve(null);
-                    }
+                    resolve(response);
                 } else {
                     addDebugMessage("No response from content script");
-                    resolve(null);
+                    reject(new Error("No response from content script"));
                 }
             });
         });
@@ -73,7 +29,9 @@ function initializeJsTree() {
 
     generateTreeData().then((treeData) => {
         if (treeData) {
-            addDebugMessage("Tree data received, initializing jstree");
+            addDebugMessage("Tree data received, initializing jsTree");
+            console.log("Tree Data for jsTree:", JSON.stringify(treeData, null, 2));
+            
             $('#jstree').jstree({
                 'core': {
                     'data': treeData,
@@ -83,24 +41,15 @@ function initializeJsTree() {
                         'icons': true
                     }
                 },
-                'types': {
-                    'default': {
-                        'icon': 'fas fa-folder'
-                    },
-                    'file': {
-                        'icon': 'fas fa-file'
-                    }
-                },
-                'plugins': ['types', 'state']
-            }).on('open_node.jstree', function (e, data) {
-                data.instance.set_icon(data.node, "fas fa-folder-open");
-            }).on('close_node.jstree', function (e, data) {
-                data.instance.set_icon(data.node, "fas fa-folder");
+                'plugins': ['types']
+            }).on('ready.jstree', function() {
+                addDebugMessage("jsTree is ready!");
             }).on('changed.jstree', function (e, data) {
                 if (data.selected.length) {
                     const nodeData = data.instance.get_node(data.selected[0]).original;
                     addDebugMessage(`Node selected, sending highlight message for ${nodeData.selector}`);
-                    
+                    currentHighlight = nodeData.selector;
+
                     chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
                         chrome.tabs.sendMessage(tabs[0].id, {
                             action: "highlightElement",
@@ -117,37 +66,21 @@ function initializeJsTree() {
     });
 }
 
-// DomOutline Integration
-function initializeDomOutline() {
-    var myClickHandler = function(element) {
-        addDebugMessage('Clicked element: ' + element);
-    };
-
-    var myDomOutline = DomOutline({ onClick: myClickHandler, filter: 'div' });
-
-    // Start DomOutline when the DOM content loads
-    myDomOutline.start();
-
-    // Stop outline when needed (you can call myDomOutline.stop() from somewhere else if needed)
-}
-
 document.addEventListener('DOMContentLoaded', function() {
     addDebugMessage("DOM content loaded");
     initializeJsTree();
-    initializeDomOutline();  // Initialize DomOutline for element selection
 
     document.getElementById('copyButton').addEventListener('click', function() {
         if (currentHighlight) {
-            addDebugMessage("Copy button clicked, sending message to copy text");
             chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
                 chrome.tabs.sendMessage(tabs[0].id, {
                     action: "copyText",
                     selector: currentHighlight
                 }, function(response) {
                     if (response && response.text) {
-                        navigator.clipboard.writeText(response.text).then(() => {
+                        navigator.clipboard.writeText(response.text).then(function() {
                             addDebugMessage("Text copied to clipboard");
-                        }).catch(err => {
+                        }, function(err) {
                             addDebugMessage("Failed to copy text: " + err);
                         });
                     } else {
@@ -156,13 +89,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             });
         } else {
-            addDebugMessage("No element selected");
+            addDebugMessage("No element selected to copy text from");
         }
     });
-});
-
-chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-    if (request.action === "contentScriptLoaded") {
-        addDebugMessage("Content script loaded successfully");
-    }
 });
