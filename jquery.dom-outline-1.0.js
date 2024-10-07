@@ -18,7 +18,8 @@
             },
             active: false,
             initialized: false,
-            elements: {}
+            elements: {},
+            outlineActive: false
         };
 
         function writeStylesheet(css) {
@@ -72,9 +73,13 @@
         }
 
         function removeOutlineElements() {
-            jQuery.each(self.elements, function(name, element) {
-                element.remove();
-            });
+            if (self.outlineActive) {
+                jQuery.each(self.elements, function(name, element) {
+                    element.remove();
+                });
+                self.elements = {}; // Clear elements reference to ensure they are recreated
+                self.outlineActive = false;
+            }
         }
 
         function compileLabelText(element, width, height) {
@@ -83,7 +88,7 @@
                 label += '#' + element.id;
             }
             if (element.className) {
-                label += ('.' + jQuery.trim(element.className).replace(/ /g, '.')).replace(/\.\.+/g, '.');
+                label += ('.' + jQuery.trim(element.className).replace(/ /g, '.')).replace(/\.+/g, '.');
             }
             return label + ' (' + Math.round(width) + 'x' + Math.round(height) + ')';
         }
@@ -108,14 +113,17 @@
             var label_left = Math.max(0, left + scroll.left);
 
             self.elements.label.css({ top: label_top, left: label_left }).text(label_text);
-            self.elements.top.css({ top: Math.max(0, top - b), left: left - b, width: pos.width + b + b });
-            self.elements.bottom.css({ top: top + pos.height, left: left - b, width: pos.width + b + b });
-            self.elements.left.css({ top: top - b, left: Math.max(0, left - b), height: pos.height + b + b });
-            self.elements.right.css({ top: top - b, left: left + pos.width, height: pos.height + b + b });
+            self.elements.top.css({ top: Math.max(0, top - b), left: left - b, width: pos.width + b + b, height: b });
+            self.elements.bottom.css({ top: top + pos.height, left: left - b, width: pos.width + b + b, height: b });
+            self.elements.left.css({ top: top - b, left: Math.max(0, left - b), width: b, height: pos.height + b + b });
+            self.elements.right.css({ top: top - b, left: left + pos.width, width: b, height: pos.height + b + b });
             self.elements.box.css({ top: top, left: left, width: pos.width, height: pos.height });
+
+            self.outlineActive = true;
         }
 
         pub.start = function (element) {
+            removeOutlineElements(); // Ensure previous elements are cleared before starting
             initStylesheet();
             createOutlineElements();
             updateOutlinePosition(element);
