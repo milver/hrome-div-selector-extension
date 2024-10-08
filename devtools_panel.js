@@ -1,4 +1,14 @@
-// JavaScript for handling DevTools panel interactions
+// Updated devtools_panel.js to include logic for verifying generated selectors and retrying with different configurations
+console.log("devtools_panel.js loaded");
+chrome.devtools.panels.create(
+    "Div Selector",
+    "icon16.png",
+    "devtools_panel.html",
+    function(panel) {
+        console.log("Div Selector panel created.");
+    }
+);
+
 let currentHighlight = null;
 
 function addDebugMessage(message) {
@@ -11,44 +21,100 @@ function generateTreeData() {
     return new Promise((resolve, reject) => {
         chrome.devtools.inspectedWindow.eval(
             `(function() {
-                function getNodeStructure(element, path = '', depth = 0, maxDepth = 20) {
+                function getNodeStructure(element, depth = 0, maxDepth = 20) {
+                    if (!element || depth > maxDepth) {
+                        return null;
+                    }
+
                     let children = [];
-                    let selector = path;
-
-                    if (element.id) {
-                        selector += '#' + element.id;
-                    } else if (element.className && typeof element.className === 'string') {
-                        const className = element.className.split(' ').filter(Boolean)[0];
-                        if (className) {
-                            selector += '.' + className;
-                        } else {
-                            selector += '>' + element.tagName.toLowerCase();
-                        }
-                    } else {
-                        selector += '>' + element.tagName.toLowerCase();
-                    }
-
-                    if (depth >= maxDepth) {
-                        return {
-                            text: element.tagName.toLowerCase() +
-                                  (element.id ? '#' + element.id : '') +
-                                  (element.className && typeof element.className === 'string' ? '.' + element.className.split(' ')[0] : ''),
-                            children: false,
-                            selector: selector
-                        };
-                    }
+                    let selector = getValidSelector(element);
 
                     Array.from(element.children).forEach((child) => {
-                        children.push(getNodeStructure(child, selector + ' > ', depth + 1, maxDepth));
+                        const childNode = getNodeStructure(child, depth + 1, maxDepth);
+                        if (childNode) {
+                            children.push(childNode);
+                        }
                     });
 
                     return {
-                        text: element.tagName.toLowerCase() +
-                              (element.id ? '#' + element.id : '') +
-                              (element.className && typeof element.className === 'string' ? '.' + element.className.split(' ')[0] : ''),
+                        text: selector, // Use valid selector as node name
                         children: children.length > 0 ? children : false,
                         selector: selector
                     };
+                }
+
+                function getValidSelector(element) {
+                    // Try different configurations to generate a working selector
+                    const configurations = [
+                        () => getElementSelectorById(element),
+                        () => getElementSelectorByClass(element),
+                        () => getElementSelectorByHierarchy(element)
+                    ];
+
+                    for (let getSelector of configurations) {
+                        const selector = getSelector();
+                        if (selector && isValidSelector(selector)) {
+                            return selector;
+                        }
+                    }
+
+                    // Fallback to tag name if no other valid selector found
+                    return element.tagName.toLowerCase();
+                }
+
+                function getElementSelectorById(element) {
+                    if (element.id) {
+                        return '#' + element.id;
+                    }
+                    return null;
+                }
+
+                function getElementSelectorByClass(element) {
+                    if (element.className && typeof element.className === 'string') {
+                        const className = element.className.trim().replace(/\s+/g, '.');
+                        if (className) {
+                            return element.tagName.toLowerCase() + '.' + className;
+                        }
+                    }
+                    return null;
+                }
+
+                function getElementSelectorByHierarchy(element) {
+                    let path = element.tagName.toLowerCase();
+                    if (element.className && typeof element.className === 'string') {
+                        const className = element.className.trim().split(/\s+/)[0]; // Use only the first class
+                        if (className) {
+                            path += '.' + className;
+                        }
+                    }
+
+                    let parent = element.parentElement;
+                    while (parent && parent.tagName.toLowerCase() !== 'html') {
+                        if (parent.id) {
+                            path = '#' + parent.id + ' > ' + path;
+                            break;
+                        } else {
+                            let parentPath = parent.tagName.toLowerCase();
+                            if (parent.className && typeof parent.className === 'string') {
+                                const parentClassName = parent.className.trim().split(/\s+/)[0]; // Use only the first class
+                                if (parentClassName) {
+                                    parentPath += '.' + parentClassName;
+                                }
+                            }
+                            path = parentPath + ' > ' + path;
+                        }
+                        parent = parent.parentElement;
+                    }
+
+                    return path;
+                }
+
+                function isValidSelector(selector) {
+                    try {
+                        return document.querySelector(selector) !== null;
+                    } catch (e) {
+                        return false;
+                    }
                 }
 
                 return getNodeStructure(document.body);
@@ -103,13 +169,19 @@ function initializeJsTree() {
 function highlightElement(selector) {
     chrome.devtools.inspectedWindow.eval(`
         (function() {
-            const element = document.querySelector('${selector}');
-            if (element) {
-                inspect(element);
+            try {
+                const element = document.querySelector('${selector}');
+                if (element) {
+                    inspect(element); // Jump to Elements tab and highlight the element
+                } else {
+                    console.warn('Element not found for selector:', '${selector}');
+                }
+            } catch (e) {
+                console.error('Error during highlighting:', e);
             }
         })();
     `);
-    console.log('Element found and highlighted for selector: ', selector);
+    console.log('Attempting to highlight element with selector:', selector);
 }
 
 document.addEventListener('DOMContentLoaded', function() {
