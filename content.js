@@ -1,16 +1,12 @@
-let myDomOutline = null;  // Track the active DomOutline instance
+// Updated content.js to work with the DevTools panel integration
 
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     if (request.action === "getDOMStructure") {
         console.log("Received request for DOM structure");
         sendResponse(getNodeStructure(document.body));
-    } else if (request.action === "highlightElement") {
-        console.log("Highlighting element:", request.selector);
-        highlightElement(request.selector);
     } else if (request.action === "copyText") {
         console.log("Copying text from element:", request.selector);
         let text = getVisibleText(request.selector);
-        clearHighlight();
 
         // Remove duplicate lines before sending response
         let lines = text.split('\n').map(line => line.trim());
@@ -113,34 +109,4 @@ function getVisibleTextFromElement(element) {
 
     console.log('Collected lines after deduplication:', uniqueLines);
     return uniqueLines.join('\n');
-}
-
-function highlightElement(selector) {
-    clearHighlight();  // Ensure any existing highlight is cleared
-
-    const element = document.querySelector(selector);
-    if (element) {
-        // Stop the existing DomOutline if it's active
-        if (myDomOutline) {
-            myDomOutline.stop();
-        }
-
-        // Create a new instance of DomOutline and start highlighting the selected element
-        myDomOutline = DomOutline({ onClick: function() {}, filter: '*' });
-        myDomOutline.start(element);
-        console.log('Element found and outlined for selector: ', selector);
-    } else {
-        console.log('Element not found for selector: ', selector);
-    }
-}
-
-function clearHighlight() {
-    if (myDomOutline) {
-        myDomOutline.stop();  // Stop and remove any active DomOutline instance
-        myDomOutline = null;  // Clear the reference
-    }
-
-    // Remove any leftover elements that might not have been properly cleared
-    const outlineElements = document.querySelectorAll('.DomOutline, .DomOutline_label, .DomOutline_box');
-    outlineElements.forEach(element => element.remove());
 }

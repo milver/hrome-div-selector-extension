@@ -1,11 +1,11 @@
 {
     "manifest_version": 3,
     "name": "Div Selector",
-    "version": "1.1",
-    "description": "List all divs in a treeview, select and highlight them, and copy their visible text.",
+    "version": "1.2",
+    "description": "List all divs in a treeview, select and highlight them, and copy their visible text via a DevTools panel.",
     "permissions": ["activeTab", "scripting"],
+    "devtools_page": "devtools_panel.html",
     "action": {
-        "default_popup": "popup.html",
         "default_icon": {
             "16": "icon16.png",
             "48": "icon48.png",
@@ -17,7 +17,6 @@
             "matches": ["<all_urls>"],
             "js": [
                 "libs/jquery.min.js",
-                "jquery.dom-outline-1.0.js",
                 "content.js"
             ]
         }

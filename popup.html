@@ -2,29 +2,66 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Div Selector</title>
+    <title>Div Selector Sidebar</title>
     <link rel="stylesheet" href="libs/jstree.min.css" />
     <link rel="stylesheet" href="libs/css/all.min.css" />
     <style>
         body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            transition: margin-right 0.3s ease;  /* Smooth transition when the sidebar expands/collapses */
+        }
+        #sidebar {
+            position: fixed;
+            right: 0;
+            top: 0;
             width: 300px;
-            height: 400px;
+            height: 100%;
+            background-color: #f4f4f4;
+            border-left: 1px solid #ccc;
+            box-shadow: -2px 0 5px rgba(0,0,0,0.1);
             padding: 10px;
             overflow: hidden;
-            resize: both;
-            border: 1px solid #ccc;
             box-sizing: border-box;
+            z-index: 9999;
+            resize: horizontal;
+            transition: width 0.3s ease;  /* Smooth transition for resizing */
+        }
+        #sidebarResizeHandle {
+            position: absolute;
+            left: -5px;
+            top: 0;
+            width: 10px;
+            height: 100%;
+            cursor: ew-resize;
+            background: rgba(0, 0, 0, 0);
         }
         #jstree {
-            max-height: 300px;
+            width: 100%;
+            height: calc(100% - 80px);
             overflow: auto;
+            border: 1px solid #ddd;
+            scrollbar-width: thin;
             overflow-x: scroll;
             overflow-y: scroll;
-            scrollbar-width: auto;  /* Make scrollbar always visible (Firefox) */
-            -ms-overflow-style: scrollbar;  /* Always show scrollbar (IE/Edge) */
+        }
+        #buttons-container {
+            display: flex;
+            margin-top: 10px;
         }
         #copyButton {
-            margin-top: 10px;
+            flex: 1;
+        }
+        #closeButton {
+            flex: 1;
+            margin-left: 10px;
+            background-color: #f44336;
+            color: white;
+            border: none;
+            padding: 5px;
+            cursor: pointer;
+            font-size: 14px;
         }
         #debug {
             margin-top: 10px;
@@ -33,35 +70,74 @@
             font-size: 12px;
             color: #666;
         }
-        #closeButton {
-            cursor: pointer;
-            background-color: #f44336;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            font-size: 14px;
-            margin-left: 10px;
-        }
     </style>
 </head>
 <body>
-    <div id="jstree"></div>
-    <button id="copyButton">Copy Text</button>
-    <button id="closeButton">Close</button>
-    <div id="debug"></div>
+    <div id="sidebar">
+        <div id="sidebarResizeHandle"></div>
+        <div id="jstree"></div>
+        <div id="buttons-container">
+            <button id="copyButton">Copy Text</button>
+            <button id="closeButton">Close</button>
+        </div>
+        <div id="debug"></div>
+    </div>
 
     <script src="libs/jquery.min.js"></script>
     <script src="libs/jstree.min.js"></script>
     <script src="popup.js"></script>
     <script>
         document.getElementById('closeButton').addEventListener('click', function() {
-            window.close();
+            document.getElementById('sidebar').style.width = '0';
+            adjustContentWidth();
         });
 
-        // Prevent pop-up from closing automatically
-        window.onbeforeunload = function() {
-            return false;
+        // Make sure scrollbars are always visible for the tree view
+        const treeElement = document.getElementById('jstree');
+        treeElement.style.overflow = 'scroll';
+        treeElement.style.scrollbarWidth = 'thin';  // Firefox specific setting
+
+        // Make the sidebar resizable
+        const sidebarResizeHandle = document.getElementById('sidebarResizeHandle');
+        const sidebar = document.getElementById('sidebar');
+        let isResizing = false;
+
+        sidebarResizeHandle.addEventListener('mousedown', function(e) {
+            isResizing = true;
+            document.addEventListener('mousemove', resizeSidebar);
+            document.addEventListener('mouseup', stopResizing);
+        });
+
+        function resizeSidebar(e) {
+            if (isResizing) {
+                let newWidth = window.innerWidth - e.clientX;
+                if (newWidth > 150 && newWidth < window.innerWidth - 50) { // Set min and max width
+                    sidebar.style.width = newWidth + 'px';
+                    adjustContentWidth();
+                }
+            }
+        }
+
+        function stopResizing() {
+            isResizing = false;
+            document.removeEventListener('mousemove', resizeSidebar);
+            document.removeEventListener('mouseup', stopResizing);
+        }
+
+        // Prevent the sidebar from overlapping the page content by adjusting the main content's width
+        const adjustContentWidth = () => {
+            if (sidebar.style.width === '0px') {
+                document.body.style.marginRight = '0';
+            } else {
+                document.body.style.marginRight = `${sidebar.offsetWidth}px`;
+            }
         };
+
+        new ResizeObserver(adjustContentWidth).observe(sidebar);
+        adjustContentWidth();
+
+        // When sidebar opens, set default width
+        sidebar.style.width = '300px';
     </script>
 </body>
 </html>
