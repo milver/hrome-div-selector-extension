@@ -9,13 +9,67 @@ chrome.devtools.panels.create(
     }
 );
 
+// Variable to keep track of the currently highlighted node
 let currentHighlight = null;
 
+// Function to log debug messages to the #debug element on the HTML page
 function addDebugMessage(message) {
     const debugElement = document.getElementById('debug');
-    debugElement.innerHTML += message + '<br>';
+    if (debugElement) {
+        debugElement.innerHTML += message + '<br>';
+    }
     console.log(message);
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    addDebugMessage('DOM content loaded');
+    initializeJsTree();
+
+    // Add event listener to filter input
+    const filterInput = document.getElementById('filter-input');
+    filterInput.addEventListener('input', function() {
+        const filterText = filterInput.value.trim().toLowerCase();
+        if (filterText.length > 0) {
+            filterTree(filterText);
+        } else {
+            // Reload the entire tree if filter is empty
+            generateTreeData().then((treeData) => {
+                $('#jstree').jstree(true).settings.core.data = treeData;
+                $('#jstree').jstree(true).refresh();
+                if (currentHighlight) {
+                    // Re-select the previously highlighted node
+                    $('#jstree').jstree('select_node', currentHighlight);
+                    $('#jstree').jstree('open_node', currentHighlight);
+                }
+            }).catch(error => {
+                addDebugMessage('Error in reloading tree data: ' + error);
+            });
+        }
+    });
+
+    document.getElementById('copyButton').addEventListener('click', function() {
+        if (currentHighlight) {
+            chrome.devtools.inspectedWindow.eval(`
+                (function() {
+                    const element = document.querySelector('${currentHighlight}');
+                    if (element) {
+                        return element.innerText;
+                    } else {
+                        return '';
+                    }
+                })();
+            `, function(result, isException) {
+                if (!isException && result) {
+                    fallbackCopyToClipboard(result);
+                } else {
+                    addDebugMessage('Element not found or no text available to copy.');
+                }
+            });
+        } else {
+            addDebugMessage('No element selected to copy text from');
+        }
+    });
+});
 
 function generateTreeData() {
     return new Promise((resolve, reject) => {
@@ -130,6 +184,57 @@ function generateTreeData() {
     });
 }
 
+function filterTree(filterText) {
+    addDebugMessage(`Filtering tree with text: ${filterText}`);
+    
+    // Fetch the entire tree data again, filter it, and re-render the tree
+    generateTreeData().then((treeData) => {
+        const filteredTreeData = filterTreeData(treeData, filterText);
+        $('#jstree').jstree(true).settings.core.data = filteredTreeData;
+        $('#jstree').jstree(true).refresh();
+        if (currentHighlight) {
+            // Re-select the previously highlighted node
+            $('#jstree').jstree('select_node', currentHighlight);
+            $('#jstree').jstree('open_node', currentHighlight);
+        }
+    }).catch(error => {
+        addDebugMessage('Error in tree data filtering: ' + error);
+    });
+}
+
+function filterTreeData(node, filterText) {
+    if (!node) {
+        return null;
+    }
+
+    const matchesFilter = node.text.toLowerCase().includes(filterText);
+    const filteredChildren = [];
+
+    if (node.children && node.children !== false) {
+        node.children.forEach(child => {
+            const filteredChild = filterTreeData(child, filterText);
+            if (filteredChild) {
+                filteredChildren.push(filteredChild);
+            }
+        });
+    }
+
+    if (matchesFilter || filteredChildren.length > 0) {
+        return {
+            ...node,
+            text: highlightMatch(node.text, filterText),
+            children: filteredChildren.length > 0 ? filteredChildren : false
+        };
+    }
+
+    return null;
+}
+
+function highlightMatch(text, filterText) {
+    const regex = new RegExp(`(${filterText})`, 'gi');
+    return text.replace(regex, '<span class="highlight">$1</span>');
+}
+
 function initializeJsTree() {
     addDebugMessage('Initializing jsTree');
 
@@ -147,9 +252,14 @@ function initializeJsTree() {
                         'icons': true
                     }
                 },
-                'plugins': ['types']
+                'plugins': ['types', 'search']
             }).on('ready.jstree', function() {
                 addDebugMessage('jsTree is ready!');
+                if (currentHighlight) {
+                    // Re-select the previously highlighted node when the tree is ready
+                    $('#jstree').jstree('select_node', currentHighlight);
+                    $('#jstree').jstree('open_node', currentHighlight);
+                }
             }).on('changed.jstree', function (e, data) {
                 if (data.selected.length) {
                     const nodeData = data.instance.get_node(data.selected[0]).original;
@@ -184,34 +294,6 @@ function highlightElement(selector) {
     console.log('Attempting to highlight element with selector:', selector);
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    addDebugMessage('DOM content loaded');
-    initializeJsTree();
-
-    document.getElementById('copyButton').addEventListener('click', function() {
-        if (currentHighlight) {
-            chrome.devtools.inspectedWindow.eval(`
-                (function() {
-                    const element = document.querySelector('${currentHighlight}');
-                    if (element) {
-                        return element.innerText;
-                    } else {
-                        return '';
-                    }
-                })();
-            `, function(result, isException) {
-                if (!isException && result) {
-                    fallbackCopyToClipboard(result);
-                } else {
-                    addDebugMessage('Element not found or no text available to copy.');
-                }
-            });
-        } else {
-            addDebugMessage('No element selected to copy text from');
-        }
-    });
-});
-
 function fallbackCopyToClipboard(text) {
     // Final deduplication check before copying to clipboard
     let lines = text.split('\n').map(line => line.trim());
@@ -243,4 +325,3 @@ function fallbackCopyToClipboard(text) {
     }
     document.body.removeChild(textArea);
 }
-
