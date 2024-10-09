@@ -213,6 +213,17 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function fallbackCopyToClipboard(text) {
+    // Final deduplication check before copying to clipboard
+    let lines = text.split('\n').map(line => line.trim());
+    let uniqueLines = [];
+    lines.forEach(line => {
+        if (line && !uniqueLines.includes(line)) {
+            uniqueLines.push(line);
+        }
+    });
+    text = uniqueLines.join('\n');
+
+    // Proceed with copying the deduplicated text
     const textArea = document.createElement("textarea");
     textArea.value = text;
     document.body.appendChild(textArea);
@@ -232,3 +243,4 @@ function fallbackCopyToClipboard(text) {
     }
     document.body.removeChild(textArea);
 }
+
