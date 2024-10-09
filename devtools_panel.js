@@ -201,11 +201,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 })();
             `, function(result, isException) {
                 if (!isException && result) {
-                    navigator.clipboard.writeText(result).then(function() {
-                        addDebugMessage('Text copied to clipboard');
-                    }, function(err) {
-                        addDebugMessage('Failed to copy text: ' + err);
-                    });
+                    fallbackCopyToClipboard(result);
                 } else {
                     addDebugMessage('Element not found or no text available to copy.');
                 }
@@ -215,3 +211,24 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+function fallbackCopyToClipboard(text) {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+            addDebugMessage('Text copied to clipboard using fallback method');
+        } else {
+            addDebugMessage('Failed to copy text using fallback method, prompting user to manually copy');
+            alert('Unable to automatically copy the text. Please manually copy the text from below:\n\n' + text);
+        }
+    } catch (err) {
+        addDebugMessage('Failed to copy text using fallback method: ' + err);
+        alert('Unable to automatically copy the text. Please manually copy the text from below:\n\n' + text);
+    }
+    document.body.removeChild(textArea);
+}
